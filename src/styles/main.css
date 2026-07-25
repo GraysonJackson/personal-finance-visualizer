@@ -114,10 +114,17 @@ body {
 }
 
 .chart-container {
+  position: relative;
   height: 400px;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius);
   padding: 1rem;
+  overflow: hidden;
+}
+
+.chart-container svg {
+  display: block;
+  max-width: 100%;
 }
 
 .summary-section {

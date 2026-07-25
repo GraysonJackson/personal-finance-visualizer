@@ -1,3 +1,11 @@
+// Returns the usable inner width of a container, excluding its own CSS
+// padding, so charts drawn at this width never overflow the visible box.
+function getInnerWidth(el) {
+    const cs = getComputedStyle(el);
+    const paddingX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    return el.clientWidth - paddingX;
+}
+
 // Sample financial data for the Sankey diagram
 // Represents a typical monthly income → spending flow
 const sampleData = {

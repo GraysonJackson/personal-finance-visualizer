@@ -1,0 +1,135 @@
+diff --git a/src/js/area-chart.js b/src/js/area-chart.js
+index 2f872a8..fdcf1bc 100644
+--- a/src/js/area-chart.js
++++ b/src/js/area-chart.js
+@@ -2,8 +2,9 @@
+ // Animates transitions between filtered states using D3's enter/update/exit pattern
+ 
+ function createAreaChart(data, containerId, colors) {
+-    const margin = { top: 20, right: 80, bottom: 30, left: 50 };
+-    const width = document.getElementById(containerId).clientWidth - margin.left - margin.right;
++    const margin = { top: 20, right: 90, bottom: 30, left: 50 };
++    const containerEl = document.getElementById(containerId);
++    const width = getInnerWidth(containerEl) - margin.left - margin.right;
+     const height = 400 - margin.top - margin.bottom;
+ 
+     d3.select(`#${containerId}`).selectAll("*").remove();
+@@ -159,9 +160,10 @@ function createAreaChart(data, containerId, colors) {
+ 
+     // Handle window resize
+     window.addEventListener("resize", () => {
+-        const newWidth = document.getElementById(containerId).clientWidth - margin.left - margin.right;
++        const newWidth = getInnerWidth(containerEl) - margin.left - margin.right;
+         svg.attr("width", newWidth + margin.left + margin.right);
+         x.range([0, newWidth]);
++        legend.attr("transform", `translate(${newWidth + 10}, 0)`);
+         svg.selectAll("path.area").attr("d", area);
+         svg.select("g").call(d3.axisBottom(x));
+     });
+diff --git a/src/js/data.js b/src/js/data.js
+index 33ba7e1..1752384 100644
+--- a/src/js/data.js
++++ b/src/js/data.js
+@@ -1,3 +1,11 @@
++// Returns the usable inner width of a container, excluding its own CSS
++// padding, so charts drawn at this width never overflow the visible box.
++function getInnerWidth(el) {
++    const cs = getComputedStyle(el);
++    const paddingX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
++    return el.clientWidth - paddingX;
++}
++
+ // Sample financial data for the Sankey diagram
+ // Represents a typical monthly income → spending flow
+ const sampleData = {
+diff --git a/src/js/sankey.js b/src/js/sankey.js
+index b6f1388..8470d2f 100644
+--- a/src/js/sankey.js
++++ b/src/js/sankey.js
+@@ -6,7 +6,8 @@
+ function createSankeyChart(data, containerId) {
+     // Set up dimensions and margins
+     const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+-    const width = document.getElementById(containerId).clientWidth - margin.left - margin.right;
++    const containerEl = document.getElementById(containerId);
++    const width = getInnerWidth(containerEl) - margin.left - margin.right;
+     const height = 400 - margin.top - margin.bottom;
+ 
+     // Clear any existing content
+@@ -63,15 +64,20 @@ function createSankeyChart(data, containerId) {
+         .attr("stroke", "#000")
+         .attr("stroke-width", 1);
+ 
+-    // Add labels for the nodes
++    // Add labels for the nodes. Nodes in the left half of the diagram get their
++    // label drawn to the right of the node (inside the chart); nodes in the
++    // right half get theirs drawn to the left. Always anchoring to the left
++    // (as the original code did) pushes labels for the leftmost column
++    // past x=0 and off the edge of the container.
+     node.append("text")
+-        .attr("x", d => d.x0 - 6)
++        .attr("x", d => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6))
+         .attr("y", d => (d.y1 + d.y0) / 2)
+         .attr("dy", "0.35em")
+-        .attr("text-anchor", "end")
++        .attr("text-anchor", d => (d.x0 < width / 2 ? "start" : "end"))
+         .text(d => d.name)
+         .style("font-family", "var(--font-body)")
+-        .style("font-size", "12px");
++        .style("font-size", "12px")
++        .style("fill", "var(--color-text)");
+ 
+     // Add title for each link
+     link.append("title")
+@@ -140,14 +146,15 @@ function createSankeyChart(data, containerId) {
+ 
+     // Handle window resize
+     window.addEventListener("resize", () => {
+-        const newWidth = document.getElementById(containerId).clientWidth - margin.left - margin.right;
++        const newWidth = getInnerWidth(containerEl) - margin.left - margin.right;
+         svg.attr("width", newWidth + margin.left + margin.right);
+         sankey.extent([[1, 1], [newWidth - 1, height - 6]]);
+-        updateSankey();
++        updateSankey(newWidth);
+     });
+ 
+     // Update function for responsive changes
+-    function updateSankey() {
++    function updateSankey(currentWidth) {
++        const w = currentWidth === undefined ? width : currentWidth;
+         const { nodes: updatedNodes, links: updatedLinks } = sankey({
+             nodes: data.nodes.map(d => Object.assign({}, d)),
+             links: data.links.map(d => Object.assign({}, d))
+@@ -164,7 +171,8 @@ function createSankeyChart(data, containerId) {
+             .attr("width", d => d.x1 - d.x0);
+ 
+         node.select("text")
+-            .attr("x", d => d.x0 - 6)
++            .attr("x", d => (d.x0 < w / 2 ? d.x1 + 6 : d.x0 - 6))
++            .attr("text-anchor", d => (d.x0 < w / 2 ? "start" : "end"))
+             .attr("y", d => (d.y1 + d.y0) / 2);
+     }
+ }
+\ No newline at end of file
+diff --git a/src/styles/main.css b/src/styles/main.css
+index a176e60..6380e31 100644
+--- a/src/styles/main.css
++++ b/src/styles/main.css
+@@ -114,10 +114,17 @@ body {
+ }
+ 
+ .chart-container {
++  position: relative;
+   height: 400px;
+   border: 1px solid var(--color-border);
+   border-radius: var(--border-radius);
+   padding: 1rem;
++  overflow: hidden;
++}
++
++.chart-container svg {
++  display: block;
++  max-width: 100%;
+ }
+ 
+ .summary-section {

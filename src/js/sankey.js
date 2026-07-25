@@ -6,7 +6,8 @@
 function createSankeyChart(data, containerId) {
     // Set up dimensions and margins
     const margin = { top: 20, right: 20, bottom: 20, left: 20 };
-    const width = document.getElementById(containerId).clientWidth - margin.left - margin.right;
+    const containerEl = document.getElementById(containerId);
+    const width = getInnerWidth(containerEl) - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
 
     // Clear any existing content
@@ -63,15 +64,20 @@ function createSankeyChart(data, containerId) {
         .attr("stroke", "#000")
         .attr("stroke-width", 1);
 
-    // Add labels for the nodes
+    // Add labels for the nodes. Nodes in the left half of the diagram get their
+    // label drawn to the right of the node (inside the chart); nodes in the
+    // right half get theirs drawn to the left. Always anchoring to the left
+    // (as the original code did) pushes labels for the leftmost column
+    // past x=0 and off the edge of the container.
     node.append("text")
-        .attr("x", d => d.x0 - 6)
+        .attr("x", d => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6))
         .attr("y", d => (d.y1 + d.y0) / 2)
         .attr("dy", "0.35em")
-        .attr("text-anchor", "end")
+        .attr("text-anchor", d => (d.x0 < width / 2 ? "start" : "end"))
         .text(d => d.name)
         .style("font-family", "var(--font-body)")
-        .style("font-size", "12px");
+        .style("font-size", "12px")
+        .style("fill", "var(--color-text)");
 
     // Add title for each link
     link.append("title")
@@ -140,14 +146,15 @@ function createSankeyChart(data, containerId) {
 
     // Handle window resize
     window.addEventListener("resize", () => {
-        const newWidth = document.getElementById(containerId).clientWidth - margin.left - margin.right;
+        const newWidth = getInnerWidth(containerEl) - margin.left - margin.right;
         svg.attr("width", newWidth + margin.left + margin.right);
         sankey.extent([[1, 1], [newWidth - 1, height - 6]]);
-        updateSankey();
+        updateSankey(newWidth);
     });
 
     // Update function for responsive changes
-    function updateSankey() {
+    function updateSankey(currentWidth) {
+        const w = currentWidth === undefined ? width : currentWidth;
         const { nodes: updatedNodes, links: updatedLinks } = sankey({
             nodes: data.nodes.map(d => Object.assign({}, d)),
             links: data.links.map(d => Object.assign({}, d))
@@ -164,7 +171,8 @@ function createSankeyChart(data, containerId) {
             .attr("width", d => d.x1 - d.x0);
 
         node.select("text")
-            .attr("x", d => d.x0 - 6)
+            .attr("x", d => (d.x0 < w / 2 ? d.x1 + 6 : d.x0 - 6))
+            .attr("text-anchor", d => (d.x0 < w / 2 ? "start" : "end"))
             .attr("y", d => (d.y1 + d.y0) / 2);
     }
 }

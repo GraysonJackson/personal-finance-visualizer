@@ -2,8 +2,9 @@
 // Animates transitions between filtered states using D3's enter/update/exit pattern
 
 function createAreaChart(data, containerId, colors) {
-    const margin = { top: 20, right: 80, bottom: 30, left: 50 };
-    const width = document.getElementById(containerId).clientWidth - margin.left - margin.right;
+    const margin = { top: 20, right: 90, bottom: 30, left: 50 };
+    const containerEl = document.getElementById(containerId);
+    const width = getInnerWidth(containerEl) - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
 
     d3.select(`#${containerId}`).selectAll("*").remove();
@@ -159,9 +160,10 @@ function createAreaChart(data, containerId, colors) {
 
     // Handle window resize
     window.addEventListener("resize", () => {
-        const newWidth = document.getElementById(containerId).clientWidth - margin.left - margin.right;
+        const newWidth = getInnerWidth(containerEl) - margin.left - margin.right;
         svg.attr("width", newWidth + margin.left + margin.right);
         x.range([0, newWidth]);
+        legend.attr("transform", `translate(${newWidth + 10}, 0)`);
         svg.selectAll("path.area").attr("d", area);
         svg.select("g").call(d3.axisBottom(x));
     });
