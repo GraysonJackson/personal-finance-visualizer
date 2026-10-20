@@ -1,17 +1,22 @@
-# Spending Flow colorful data visualization for personal finances. D3-powered Sankey diagram animated stacked area chart turn spending data into something worth looking at.
+# Between Paychecks
 
-[Live Demo](https://graysonjackson.github.io/personal-finance-visualizer/)
+An irregular-income dashboard using one transaction dataset for period totals, a balanced D3 Sankey, spending history, category detail, and a searchable ledger. All financial arithmetic uses validated integer cents.
 
-## What It Does 
-Upload a CSV or use seeded fake data to visualize spending patterns. Sankey diagram shows income flowing into spending categories. Stacked area chart shows spending over time. Click a flow segment filter the entire dashboard to that category. 
-## Design Decisions 
-Where most data dashboards are monochrome utilitarian, this one is unapologetically colorful. Full categorical palette, animated transitions that feel alive. Transitions between filtered states use D3 enter/update/exit pattern with eased morphing, not just fade-in fade-out
-## Tech Stack
- **Vanilla JS** - No frameworks, no build step 
- **D3.js** - Sankey diagram, stacked area chart, custom transitions
-  **PapaParse** - CSV parsing client-side ## Getting Started
+[Open the dashboard](https://graysonjackson.github.io/personal-finance-visualizer/)
 
-```bash
-# Serve locally
-npx serve .
-# Or open index.html directly in browser
+```sh
+npm ci
+npm run build
+npm test
+npm run preview
+```
+
+Vite builds `out/` for `/personal-finance-visualizer/`. The Pages workflow publishes that artifact.
+
+## CSV
+
+The importer supports quoted CSV, column mapping, review, and cancellation. Files are limited to 5 MB and 5,000 rows. Use USD amounts with at most two decimal places. A type column can distinguish income, expenses, refunds, and transfers; absent a type, signs distinguish income/expense. Internal amounts store a positive cent magnitude alongside the explicit type. Transfers are excluded from flow totals. Refunds are shown as inflows and reduce net spending. Net flow is not a bank balance or a forecast.
+
+Parsing/validation errors preserve the current dataset. Imported text is escaped for display. The example CSV is downloadable from the interface. Transactions remain in memory unless Save Session is explicitly selected; Clear Saved removes only this application's storage key. Hosted page and font requests still occur, but the application does not upload CSV contents.
+
+Tests cover the actual parser, transaction store, chart data, sorting, precision boundaries, refunds/transfers, and malicious-text escaping. Browser tests remain necessary for user journeys and layout.

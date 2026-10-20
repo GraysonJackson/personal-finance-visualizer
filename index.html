@@ -1,67 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spending Flow — Personal Finance Visualizer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="src/styles/main.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Between Paychecks — Irregular Income Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
-    <header class="site-header">
-        <div class="header-inner">
-            <h1 class="site-title">Spending Flow</h1>
-            <p class="site-subtitle">Where your money goes, visualized.</p>
+  <!-- Cockpit Top Telemetry Bar -->
+  <header class="cockpit-header">
+    <div class="brand-cockpit">
+      <span class="brand-title">BETWEEN PAYCHECKS</span>
+      <span class="cockpit-tag">Understand the month</span>
+    </div>
+    <div class="header-right">
+      <div class="privacy-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>CSV contents stay in this browser</span>
+      </div>
+      <div class="storage-actions">
+        <button id="saveSessionBtn" class="telemetry-btn" title="Persist current dataset in local browser storage (explicit action)">
+          SAVE SESSION
+        </button>
+        <button id="clearSessionBtn" class="telemetry-btn" title="Clear local browser storage for this site">
+          CLEAR SAVED
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="cockpit-body"><h1>Between Paychecks</h1><p>What came in, where did it go, and what remains? Net flow is not a bank balance.</p><label for="period-select">Period </label><select id="period-select" aria-label="Period"></select><p><a href="./example.csv" download>Download an example CSV</a> · USD only · Up to 5 MB and 5,000 rows. Use income, expense, refund, or transfer in the type column.</p>
+    <!-- PapaParse CSV Ingestion Status Panel -->
+    <section class="ingestion-panel">
+      <div class="ingestion-meta">
+        <span>Data source:</span>
+        <span class="file-pill" id="active-file-pill">Fictional sample data</span>
+        <span class="ingestion-status" id="ingestion-status-text">Showing fictional sample transactions</span>
+      </div>
+      <div class="ingest-actions">
+        <label class="upload-csv-btn">
+          <span>UPLOAD CSV</span>
+          <input type="file" id="csv-file-input" accept=".csv,text/csv" hidden>
+        </label>
+        <select id="fixture-select" aria-label="Sample dataset" class="fixture-select" title="Load a pre-configured sample fixture">
+          <option value="freelance_q3">Fixture: Freelance Q3 (Funding Gap Deficit)</option>
+          <option value="surplus_q4">Fixture: Consulting Q4 (Surplus Reserve)</option>
+          <option value="balanced">Fixture: Balanced Cashflow ($0 Gap)</option>
+          <option value="quoted_bom">Fixture: Quoted Fields &amp; UTF-8 BOM</option>
+        </select>
+        <button class="reparse-btn" id="resetData">Reset sample data</button>
+      </div>
+    </section>
+
+    <!-- KPI Cockpit Summary -->
+    <section class="kpi-row">
+      <div class="kpi-card" id="kpi-inflows-card">
+        <div class="kpi-label">
+          <span>INCOME</span>
+          <span style="color:var(--accent-income)">+ IN</span>
         </div>
-    </header>
+        <div class="kpi-val" id="kpi-inflows-val" style="color:var(--accent-income)">$4,250.00</div>
+        <div class="kpi-sub">Income in the selected period</div>
+      </div>
 
-    <main class="dashboard">
-        <section class="data-controls">
-            <label class="upload-btn">
-                Upload CSV
-                <input type="file" id="csvUpload" accept=".csv" hidden>
-            </label>
-            <button class="reset-btn" id="resetData">Reset to Sample Data</button>
-            <span class="data-status" id="dataStatus">Using sample data</span>
-        </section>
+      <div class="kpi-card" id="kpi-outflows-card">
+        <div class="kpi-label">
+          <span>NET SPENDING</span>
+          <span style="color:var(--accent-expense)">- OUT</span>
+        </div>
+        <div class="kpi-val" id="kpi-outflows-val" style="color:var(--accent-expense)">$5,120.00</div>
+        <div class="kpi-sub">Expenses minus refunds</div>
+      </div>
 
-        <section class="chart-section">
-            <h2 class="section-title">Income → Spending Flow</h2>
-            <div class="chart-container" id="sankeyContainer"></div>
-        </section>
+      <!-- Mandatory Balancing Term (Funding Gap or Surplus) -->
+      <div class="kpi-card" id="kpi-gap-card" style="border-color: rgba(239, 68, 68, 0.4);">
+        <div class="kpi-label" id="kpi-gap-label">
+          <span>SYNTHETIC INFLOW (GAP)</span>
+          <span style="color:var(--accent-gap)">⚠️ BALANCING</span>
+        </div>
+        <div class="kpi-val" id="kpi-gap-val" style="color:var(--accent-gap)">$870.00</div>
+        <div class="kpi-sub" id="kpi-gap-sub">Deficit term injected into Sankey</div>
+      </div>
 
-        <section class="chart-section">
-            <h2 class="section-title">Spending Over Time</h2>
-            <div class="chart-container" id="areaContainer"></div>
-        </section>
+      <div class="kpi-card" id="kpi-runway-card">
+        <div class="kpi-label">
+          <span>NET FLOW</span>
+          <span>USD</span>
+        </div>
+        <div class="kpi-val" id="kpi-runway-val" style="color:var(--accent-gap)">-$870.00</div>
+        <div class="kpi-sub" id="kpi-runway-sub">-87,000 cents reserve draw</div>
+      </div>
+    </section>
 
-        <section class="summary-section">
-            <div class="summary-card" id="totalIncome">
-                <span class="summary-label">Monthly Income</span>
-                <span class="summary-value">—</span>
-            </div>
-            <div class="summary-card" id="totalSpending">
-                <span class="summary-label">Total Spending</span>
-                <span class="summary-value">—</span>
-            </div>
-            <div class="summary-card" id="netSavings">
-                <span class="summary-label">Net Savings</span>
-                <span class="summary-value">—</span>
-            </div>
-        </section>
-    </main>
+    <!-- Balanced Acyclic D3 Sankey Diagram -->
+    <section class="sankey-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>Where the money flows</span>
+        </h2>
+        <div class="sankey-legend">
+          <div class="legend-item"><span class="legend-box" style="background:var(--accent-income)"></span> Income and refunds</div>
+          <div class="legend-item"><span class="legend-box" style="background:var(--accent-gap)"></span> Funding Gap (Balancing Term)</div>
+          <div class="legend-item"><span class="legend-box" style="background:var(--accent-cyan)"></span> Period funds</div>
+          <div class="legend-item"><span class="legend-box" style="background:var(--accent-expense)"></span> Gross expenses</div>
+        </div>
+      </div>
 
-    <footer class="site-footer">
-        <p>&copy; 2026 Spending Flow. All data processed locally — nothing leaves your browser.</p>
-    </footer>
+      <div class="sankey-container" id="sankeyContainer"></div>
+    </section>
 
-    <script src="src/js/data.js"></script>
-    <script src="src/js/sankey.js"></script>
-    <script src="src/js/area-chart.js"></script>
-    <script src="src/js/app.js"></script>
+    <!-- Bottom Split: Spending History / Drilldown & Transaction Ledger -->
+    <div class="bottom-split">
+      <!-- Left Panel: Stacked Cashflow History & Category Drilldown -->
+      <section class="history-card">
+        <h3 class="section-title" style="margin-bottom:6px;">STACKED CASHFLOW HISTORY</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+          History across all dates in this dataset. Category selection narrows expense history.
+        </p>
+
+        <div class="history-container" id="historyContainer"></div>
+
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px; font-family:var(--font-mono); font-size:11px;">
+          <span style="color:var(--accent-income)">■ Irregular Inflows</span>
+          <span style="color:var(--accent-expense)">■ Baseline Outflows</span>
+        </div>
+
+        <!-- Category Drilldown View -->
+        <div class="drilldown-container" id="drilldownContainer"></div>
+      </section>
+
+      <!-- Right Panel: Sortable Transaction Ledger -->
+      <section class="table-card" id="ledgerContainer"></section>
+    </div>
+  </main>
+
+  <!-- Modal for CSV Ingestion with Column Mapping & Validation Preview -->
+  <div id="ingest-modal" style="display:none;"></div>
+
+  <!-- Vite App Module Entry -->
+  <script type="module" src="/src/js/app.js"></script>
 </body>
 </html>

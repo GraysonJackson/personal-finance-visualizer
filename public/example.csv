@@ -1,0 +1,5 @@
+date,description,category,amount,type
+2026-10-01,Campus work,Work,1200.00,income
+2026-10-02,Rent,Housing,-650.00,expense
+2026-10-03,Returned book,Books,25.00,refund
+2026-10-04,Between accounts,Transfer,-100.00,transfer
